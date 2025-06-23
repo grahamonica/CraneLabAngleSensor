@@ -28,13 +28,8 @@ for i in range (100000):
     sensor3pos = hundredtests[4 * i + 2]
     sensor4pos = hundredtests[4 * i + 3]
 
-    sensor_readings = [
-        hundredtests[4 * i],
-        hundredtests[4 * i + 1],
-        hundredtests[4 * i + 2],
-        hundredtests[4 * i + 3]
-    ]
-
+    sensor_readings = [sensor1pos, sensor2pos, sensor3pos, sensor4pos]
+    
     estimated_center1 = individual.estimate_from_individual_projections(sensor_readings, sensor_positions)
 
     # Now we are going to use combos of 3 sensors to identify the location with trilateration
