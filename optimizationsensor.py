@@ -12,8 +12,8 @@ import individual
 squareside = 24  # inches between sensors on the sides of a square
 cablecenter = (11.5, 12.5)  # center of the simulated cable
 cablerad = .25  # radius of the cable
-distancestddev = 1 # standard deviation of the distance noise
-anglestddev = math.pi / 100 # standard deviation of the angle noise in radians
+distancestddev = 0.0787402 # standard deviation of the distance noise (this is 2mm in inches)
+anglestddev = math.pi / 180 # range of accuracy for the yaw angle in radians (this is 1 degree)
 
 hundredtests, sensor_positions = sensordata.generate_sensor_data(squareside, cablecenter, cablerad, distancestddev, anglestddev)
 
@@ -21,7 +21,7 @@ all_d1 = []
 all_d2 = []
 all_d3 = []
 
-for i in range (100):
+for i in range (100000):
     # First we are going to use each sensor to identify the location individually
     sensor1pos = hundredtests[4 * i]
     sensor2pos = hundredtests[4 * i + 1]

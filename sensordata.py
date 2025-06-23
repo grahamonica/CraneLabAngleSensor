@@ -22,7 +22,7 @@ def generate_sensor_data(squareside, cablecenter, cablerad, distancestddev, angl
 
     hundredtests = []
 
-    for i in range(100):
+    for i in range(100000):
         test = []
         for sensor in sensors:
             normaldistance = random.gauss(0, distancestddev)
