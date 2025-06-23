@@ -23,24 +23,14 @@ for i in range (100):
     sensor3pos = hundredtests[4 * i + 2]
     sensor4pos = hundredtests[4 * i + 3]
 
-    cable1x = sensor1pos[0] * math.cos(sensor1pos[1])
-    cable1y = sensor1pos[0] * math.sin(sensor1pos[1])
+    sensor_readings = [
+        hundredtests[4 * i],
+        hundredtests[4 * i + 1],
+        hundredtests[4 * i + 2],
+        hundredtests[4 * i + 3]
+    ]
 
-    cable2x = sensor2pos[0] * math.cos(sensor2pos[1])
-    cable2y = sensor2pos[0] * math.sin(sensor2pos[1])
-
-    cable3x = sensor3pos[0] * math.cos(sensor3pos[1])
-    cable3y = sensor3pos[0] * math.sin(sensor3pos[1])
-
-    cable4x = sensor4pos[0] * math.cos(sensor4pos[1])
-    cable4y = sensor4pos[0] * math.sin(sensor4pos[1])
-
-    estimated_center1 = leastsquares.robust_least_squares(np.array([
-        [cable1x, cable1y],
-        [cable2x, cable2y],
-        [cable3x, cable3y],
-        [cable4x, cable4y]
-    ]))
+    estimated_center1 = individual.estimate_from_individual_projections(sensor_readings, sensor_positions)
 
     # Now we are going to use combos of 3 sensors to identify the location with trilateration
     distances = [sensor1pos[0], sensor2pos[0], sensor3pos[0], sensor4pos[0]]
