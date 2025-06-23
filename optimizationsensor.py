@@ -1,6 +1,7 @@
 # Importing the simulated sensor data
 import sensordata
 import math
+import statistics
 import numpy as np
 import trilaterate
 import triangulate
@@ -15,6 +16,10 @@ distancestddev = 1 # standard deviation of the distance noise
 anglestddev = math.pi / 100 # standard deviation of the angle noise in radians
 
 hundredtests, sensor_positions = sensordata.generate_sensor_data(squareside, cablecenter, cablerad, distancestddev, anglestddev)
+
+all_d1 = []
+all_d2 = []
+all_d3 = []
 
 for i in range (100):
     # First we are going to use each sensor to identify the location individually
@@ -47,9 +52,22 @@ for i in range (100):
     d1 = distance(estimated_center1, cablecenter)
     d2 = distance(estimated_center2, cablecenter)
     d3 = distance(estimated_center3, cablecenter)
+    all_d1.append(d1)
+    all_d2.append(d2)
+    all_d3.append(d3)
 
     print(f"Test {i}:")
     print(f"  From direct sensor projections (least squares):    Distance = {d1:.3f} inches")
     print(f"  From trilateration (distance only):               Distance = {d2:.3f} inches")
     print(f"  From triangulation (angle only):                  Distance = {d3:.3f} inches")
+
+print("\n--- Summary Over 100 Tests ---")
+def print_stats(label, data):
+    avg = statistics.mean(data)
+    std = statistics.stdev(data)
+    print(f"{label:<40} Avg = {avg:.3f} in, Std Dev = {std:.3f} in")
+
+print_stats("Individual projections (least squares):", all_d1)
+print_stats("Trilateration (distance-only):", all_d2)
+print_stats("Triangulation (angle-only):", all_d3)
 
