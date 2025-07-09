@@ -12,7 +12,7 @@ import individual
 squareside = 24  # inches between sensors on the sides of a square
 cablecenter = (11.5, 12.5)  # center of the simulated cable
 cablerad = .25  # radius of the cable
-distancestddev = 0.0787402 # standard deviation of the distance noise (this is 2mm in inches)
+distancestddev = 0.0787402 * 2.5# standard deviation of the distance noise (this is 2mm -- now 5mm in inches)
 anglestddev = math.pi / 180 # range of accuracy for the yaw angle in radians (this is 1 degree)
 
 hundredtests, sensor_positions = sensordata.generate_sensor_data(squareside, cablecenter, cablerad, distancestddev, anglestddev)
