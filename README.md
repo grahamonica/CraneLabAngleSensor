@@ -1,6 +1,26 @@
 # Crane Lab Angle Sensor
 
-This project implements various methods for estimating the position of a cable using sensor data from four sensors arranged in a square configuration. The project compares three different approaches to position estimation:
+This project implements various methods for estimating the position of a cable using sensor data from four sensors arranged in a square configuration. The project compares three different approaches to position estimation.
+
+## Setup and Dependencies
+
+### Requirements
+- Python 3.x
+- NumPy
+
+### Installation
+1. Clone this repository:
+   ```bash
+   git clone https://github.com/grahamonica/CraneLabAngleSensor.git
+   cd CraneLabAngleSensor
+   ```
+
+2. Install the required packages:
+   ```bash
+   pip install numpy
+   ```
+
+## Methods
 
 1. Individual Sensor Projections
 2. Trilateration (using distance measurements)
@@ -8,7 +28,7 @@ This project implements various methods for estimating the position of a cable u
 
 ## Project Structure
 
-- `sensordata.py` - Generates simulated sensor data with configurable parameters
+- `sensordata.py` - Generates simulated sensor data with configurable parameters; I created this to progress while I wait for the mechanical setup to be completed. Other researchers can use this to test new ideas without having a physical implementation.
 - `individual.py` - Implements position estimation using individual sensor projections and least squares
 - `trilaterate.py` - Implements trilateration using distance measurements
 - `triangulate.py` - Implements triangulation using angle measurements
