@@ -7,21 +7,40 @@ import trilaterate
 import triangulate
 import leastsquares
 import individual
+import dataformatter
 
 # Inputs for the sensor data generation in inches
-squareside = 24  # inches between sensors on the sides of a square
-cablecenter = (11.5, 12.5)  # center of the simulated cable
-cablerad = .25  # radius of the cable
+squareside = 20  # inches between sensors on the sides of a square
+cablecenter = (10, 10)  # center of the simulated cable
+cablerad = 21/25.4  # radius of the cable in inches (21mm converted to inches)
 distancestddev = 0.0787402 * 2.5# standard deviation of the distance noise (this is 2mm -- now 5mm in inches)
 anglestddev = math.pi / 180 # range of accuracy for the yaw angle in radians (this is 1 degree)
 
-hundredtests, sensor_positions = sensordata.generate_sensor_data(squareside, cablecenter, cablerad, distancestddev, anglestddev)
+# Flag to switch between simulated and formatted data
+use_formatted_data = True  # Set to True to use dataformatter.py output
+
+if use_formatted_data:
+    # Load formatted data from dataformatter.py
+    formatted_data_file = 'formatted_sensor_data.txt'
+    with open(formatted_data_file, 'r') as f:
+        hundredtests = eval(f.read())
+    
+    # Define sensor positions manually (in inches)
+    sensor_positions = [
+        (0, 0),  # lower left
+        (0, squareside),  # upper left
+        (squareside, 0),  # lower right
+        (squareside, squareside)  # upper right
+    ]
+else:
+    # Use simulated data from sensordata.py
+    hundredtests, sensor_positions = sensordata.generate_sensor_data(squareside, cablecenter, cablerad, distancestddev, anglestddev)
 
 all_d1 = []
 all_d2 = []
 all_d3 = []
 
-for i in range (100000):
+for i in range (hundredtests.__len__() // 4):
     # First we are going to use each sensor to identify the location individually
     sensor1pos = hundredtests[4 * i]
     sensor2pos = hundredtests[4 * i + 1]

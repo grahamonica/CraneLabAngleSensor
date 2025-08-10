@@ -22,7 +22,7 @@ def generate_sensor_data(squareside, cablecenter, cablerad, distancestddev, angl
 
     hundredtests = []
 
-    for i in range(100000):
+    for i in range(100):
         test = []
         for sensor in sensors:
             normaldistance = random.gauss(0, distancestddev)
@@ -32,4 +32,6 @@ def generate_sensor_data(squareside, cablecenter, cablerad, distancestddev, angl
     
         # Flatten tests into one list of 400 [dist, angle] entries
     flat_tests = [pair for test in hundredtests for pair in test]
+    print(flat_tests)
     return flat_tests, sensor_positions
+    
