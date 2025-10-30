@@ -1,87 +1,79 @@
-# Importing the simulated sensor data
-import sensordata
+# analyze_lidar.py
 import math
-import statistics
-import numpy as np
-import trilaterate
-import triangulate
-import leastsquares
-import individual
-import dataformatter
+import csv, statistics, subprocess
+from collections import defaultdict
+import trilaterate, triangulate, individual
 
-# Inputs for the sensor data generation in inches
-squareside = 20  # inches between sensors on the sides of a square
-cablecenter = (10, 10)  # center of the simulated cable
-cablerad = 21/25.4  # radius of the cable in inches (21mm converted to inches)
-distancestddev = 0.0787402 * 2.5# standard deviation of the distance noise (this is 2mm -- now 5mm in inches)
-anglestddev = math.pi / 180 # range of accuracy for the yaw angle in radians (this is 1 degree)
+cableheight = 816.11/25.4
+# Geometry (inches)
+SQUARESIDE = 500/25.4
+SENSOR_POS = [
+    ( SQUARESIDE/2,  SQUARESIDE/2),   # 1
+    (-SQUARESIDE/2,  SQUARESIDE/2),   # 2
+    (-SQUARESIDE/2, -SQUARESIDE/2),   # 3
+    ( SQUARESIDE/2, -SQUARESIDE/2),   # 4
+]
+CABLECENTER = (0.0, 0.0)  # set to None to skip distance-to-target
 
-# Flag to switch between simulated and formatted data
-use_formatted_data = True  # Set to True to use dataformatter.py output
+def run_formatter():
+    print("Converting Excel → CSV...")
+    subprocess.run(["python", "dataformatter.py"], check=True)
 
-if use_formatted_data:
-    # Load formatted data from dataformatter.py
-    formatted_data_file = 'formatted_sensor_data.txt'
-    with open(formatted_data_file, 'r') as f:
-        hundredtests = eval(f.read())
-    
-    # Define sensor positions manually (in inches)
-    sensor_positions = [
-        (0, 0),  # lower left
-        (0, squareside),  # upper left
-        (squareside, 0),  # lower right
-        (squareside, squareside)  # upper right
-    ]
-else:
-    # Use simulated data from sensordata.py
-    hundredtests, sensor_positions = sensordata.generate_sensor_data(squareside, cablecenter, cablerad, distancestddev, anglestddev)
+def load_tests(csv_path="formatted_sensor_data.csv"):
+    tests = defaultdict(list)
+    with open(csv_path, newline="") as f:
+        for r in csv.DictReader(f):
+            t = int(r["Test"])
+            tests[t].append((float(r["Distance (inches)"]), float(r["Angle (degrees)"])))
+    return [v for _, v in sorted(tests.items()) if len(v) == 4]
 
-all_d1 = []
-all_d2 = []
-all_d3 = []
+def hypot2(a, b):
+    dx, dy = a[0]-b[0], a[1]-b[1]
+    return (dx*dx + dy*dy) ** 0.5
 
-for i in range (hundredtests.__len__() // 4):
-    # First we are going to use each sensor to identify the location individually
-    sensor1pos = hundredtests[4 * i]
-    sensor2pos = hundredtests[4 * i + 1]
-    sensor3pos = hundredtests[4 * i + 2]
-    sensor4pos = hundredtests[4 * i + 3]
+def main():
+    run_formatter()
+    all_tests = load_tests()
+    print(f"Loaded {len(all_tests)} complete test sets")
 
-    sensor_readings = [sensor1pos, sensor2pos, sensor3pos, sensor4pos]
-    
-    estimated_center1 = individual.estimate_from_individual_projections(sensor_readings, sensor_positions)
+    d1 = []; d2 = []; d3 = []
 
-    # Now we are going to use combos of 3 sensors to identify the location with trilateration
-    distances = [sensor1pos[0], sensor2pos[0], sensor3pos[0], sensor4pos[0]]
-    estimated_center2 = trilaterate.trilaterate_least_squares(sensor_positions, distances)
+    for i, readings in enumerate(all_tests):
+        distances = [d for d, _ in readings]
+        angles    = [a for _, a in readings]
 
-    # same thing but with triangulation
-    angles = [sensor1pos[1], sensor2pos[1], sensor3pos[1], sensor4pos[1]]
-    estimated_center3 = triangulate.robust_triangulation(sensor_positions, angles)
+        p1 = individual.estimate_from_individual_projections(readings, SENSOR_POS)
+        p2 = trilaterate.trilaterate_least_squares(SENSOR_POS, distances)
+        p3 = triangulate.robust_triangulation(SENSOR_POS, angles)
 
-    # Print the results
-    def distance(p1, p2):
-        return ((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)**0.5
+        print(f"\nTest {i}:")
+        for name, p, bucket in [
+            ("Individual Projections", p1, d1),
+            ("Trilateration",         p2, d2),
+            ("Triangulation",         p3, d3),
+        ]:
+            print(f"  {name:<30}: Position = ({p[0]:.3f}, {p[1]:.3f}) inches")
+            if CABLECENTER is not None:
+                d = hypot2(p, CABLECENTER); bucket.append(d)
+                print(f"    Distance from target = {d:.3f} inches")
 
-    d1 = distance(estimated_center1, cablecenter)
-    d2 = distance(estimated_center2, cablecenter)
-    d3 = distance(estimated_center3, cablecenter)
-    all_d1.append(d1)
-    all_d2.append(d2)
-    all_d3.append(d3)
+    def print_stats(label, arr):
+        if not arr: return
+        if len(arr) == 1:
+            print(f"{label:<40} Avg = {arr[0]:.3f} in, Std Dev = n/a")
+        else:
+            print(f"{label:<40} Avg = {statistics.mean(arr):.3f} in, Std Dev = {statistics.stdev(arr):.3f} in")
 
-    print(f"Test {i}:")
-    print(f"  From direct sensor projections (least squares):    Distance = {d1:.3f} inches")
-    print(f"  From trilateration (distance only):               Distance = {d2:.3f} inches")
-    print(f"  From triangulation (angle only):                  Distance = {d3:.3f} inches")
-
-print("\n--- Summary Over 100 Tests ---")
-def print_stats(label, data):
-    avg = statistics.mean(data)
-    std = statistics.stdev(data)
-    print(f"{label:<40} Avg = {avg:.3f} in, Std Dev = {std:.3f} in")
-
-print_stats("Individual projections (least squares):", all_d1)
-print_stats("Trilateration (distance-only):", all_d2)
-print_stats("Triangulation (angle-only):", all_d3)
-
+    print("\n--- Summary Statistics ---")
+    print_stats("Individual projections (least squares):", d1)
+    print_stats("Trilateration (distance-only):",         d2)
+    print_stats("Triangulation (angle-only):",            d3)
+    #angled1 is the angle from vertical of the cable
+    angled1 = [math.degrees(math.atan2(d, cableheight)) for d in d1]
+    print_stats("Individual projections (angle from vertical):", angled1)
+    angled2 = [math.degrees(math.atan2(d, cableheight)) for d in d2]
+    print_stats("Trilateration (angle from vertical):", angled2)
+    angled3 = [math.degrees(math.atan2(d, cableheight)) for d in d3]
+    print_stats("Triangulation (angle from vertical):", angled3)
+if __name__ == "__main__":
+    main()

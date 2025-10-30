@@ -1,99 +1,40 @@
-import math
-import openpyxl
+# dataformatter.py
+import openpyxl, csv
 
-def convert_excel_to_sensor_format(excel_file):
-    """
-    Converts LiDAR_Data_collection.xlsx data to the format used in sensordata.py
-    Input data is in mm and degrees
-    Output will be in inches and radians to match simulation format
-    """
-    # Load the workbook and select the active sheet
-    wb = openpyxl.load_workbook(excel_file)
-    sheet = wb.active
-    
-    # Convert mm to inches
-    MM_TO_INCHES = 1/25.4
-    
-    # Initialize list to store all readings
-    all_readings = []
-    
-    # Find the starting row of data (skip headers)
-    start_row = 4  # Data starts on line 4
+SHEET_NAME = "Object In Center"       # must be this sheet
+SENSOR_COLS = [(4,5),(9,10),(14,15),(19,20)]  # (angleCol, distCol) for sensors 1..4
+OFFSETS_DEG = [180.0, 180.0, 0.0, 0.0]        # sensors 1–2: +180°, 3–4: +0°
+MM2IN = 1/25.4
+START_ROW = 4
 
-    # Column indices for each sensor's data (1-based indexing)
-    sensor_columns = [
-        (4, 5),   # Sensor 1: Angle (D), Distance (E) columns
-        (9, 10),  # Sensor 2: Angle (I), Distance (J) columns
-        (14, 15), # Sensor 3: Angle (N), Distance (O) columns
-        (19, 20)  # Sensor 4: Angle (S), Distance (T) columns
-    ]
-    
-    # Process each row of data
-    row = start_row
+def convert_excel_to_sensor_format(xlsx):
+    sh = openpyxl.load_workbook(xlsx, data_only=True)[SHEET_NAME]
+    out, r = [], START_ROW
     while True:
-        has_valid_data = False
-        
-        # Process each sensor
-        for angle_col, dist_col in sensor_columns:
-            angle_cell = sheet.cell(row=row, column=angle_col).value
-            dist_cell = sheet.cell(row=row, column=dist_col).value
-            
-            # Skip if we've reached the end of data
-            if angle_cell is None or dist_cell is None:
+        row_pts, any_data = [], False
+        for s_idx,(a_col,d_col) in enumerate(SENSOR_COLS):
+            a = sh.cell(row=r, column=a_col).value
+            d = sh.cell(row=r, column=d_col).value
+            if a is None and d is None: continue
+            any_data = True
+            try:
+                a, d = float(a), float(d)
+            except (TypeError, ValueError):
                 continue
-                
-            has_valid_data = True
-            
-            # Convert units if the reading is valid
-            if dist_cell != 65535:  # Check for invalid LIDAR reading
-                distance_inches = float(dist_cell) * MM_TO_INCHES
-                angle_rad = math.radians(float(angle_cell))
-                
-                # Adjust angles based on the specified rules
-                if sensor_columns.index((angle_col, dist_col)) == 0:
-                    angle_rad -= math.pi *1.5
-
-                if sensor_columns.index((angle_col, dist_col)) == 1:
-                    angle_rad = -angle_rad + math.pi
-
-                if sensor_columns.index((angle_col, dist_col)) == 2:
-                    angle_rad -= 0#math.pi *2
-
-                if sensor_columns.index((angle_col, dist_col)) == 3:
-                    angle_rad -= 0.5 * math.pi
-                    angle_rad = -angle_rad
-                
-                all_readings.append([distance_inches, angle_rad])
-        
-        # If no valid data in this row, we've reached the end
-        if not has_valid_data:
-            break
-            
-        row += 1
-        
-    
-    return all_readings
-
-def main():
-    try:
-        # Replace with your Excel file path
-        excel_file = "LiDAR_Data_collection.xlsx"
-        formatted_data = convert_excel_to_sensor_format(excel_file)
-        
-        print("Formatted sensor data:")
-        print(formatted_data)
-        
-        # Save to a file
-        with open('formatted_sensor_data.txt', 'w') as f:
-            f.write(str(formatted_data))
-            
-        print(f"\nSuccessfully processed {len(formatted_data)} readings")
-        print("Data has been saved to 'formatted_sensor_data.txt'")
-            
-    except FileNotFoundError:
-        print(f"Error: Could not find the Excel file '{excel_file}'")
-    except Exception as e:
-        print(f"Error processing file: {str(e)}")
+            if d == 65535: continue
+            ang = ((360.0 - a) + OFFSETS_DEG[s_idx]) % 360.0
+            row_pts.append([(d+10.5)*MM2IN, ang])
+        if not any_data: break
+        if len(row_pts) == 4: out.extend(row_pts)
+        r += 1
+    return out
 
 if __name__ == "__main__":
-    main()
+    data = convert_excel_to_sensor_format("LiDAR_Data_Collection.xlsx")
+    print(f"Processed {len(data)//4} sets")
+    with open("formatted_sensor_data.csv","w",newline="") as f:
+        w = csv.writer(f); w.writerow(["Test","Sensor","Distance (inches)","Angle (degrees)"])
+        for i in range(0,len(data),4):
+            t = i//4 + 1
+            for s,(dist,ang) in enumerate(data[i:i+4], start=1):
+                w.writerow([t, s, dist, ang])
