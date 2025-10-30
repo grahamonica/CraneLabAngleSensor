@@ -1,6 +1,7 @@
 import numpy as np
 import math
 
+
 def estimate_from_individual_projections(sensor_readings, sensor_positions):
     """
     Estimate position from sensor readings where angles are in degrees.
@@ -9,13 +10,16 @@ def estimate_from_individual_projections(sensor_readings, sensor_positions):
     for i in range(4):
         dist, angle_degrees = sensor_readings[i]
         sx, sy = sensor_positions[i]
-        
-        px = sx + (dist) * math.cos(math.radians(angle_degrees)) 
-        py =sy + (dist ) * math.sin(math.radians(angle_degrees))
-        print(f"Sensor {i+1}: Position=({sx:.2f}, {sy:.2f}), Distance={dist:.2f}, Angle={angle_degrees:.2f}° => Projection=({px:.2f}, {py:.2f})")
+
+        px = sx + (dist) * math.cos(math.radians(angle_degrees))
+        py = sy + (dist) * math.sin(math.radians(angle_degrees))
+        print(
+            f"Sensor {i + 1}: Position=({sx:.2f}, {sy:.2f}), Distance={dist:.2f}, Angle={angle_degrees:.2f}° => Projection=({px:.2f}, {py:.2f})"
+        )
         projections.append([px, py])
 
     return robust_least_squares(np.array(projections))
+
 
 def robust_least_squares(points, max_iter=10, tol=1e-6):
     # Start with equal weights
