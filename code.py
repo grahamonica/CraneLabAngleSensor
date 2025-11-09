@@ -246,6 +246,7 @@ def trilaterate_least_squares(sensor_positions, distances):
     Returns (x, y) estimate. If the normal equation matrix is singular,
     returns (0.0, 0.0).
     """
+    distances = distances / 25.4
     n = len(sensor_positions)
     if n < 3:
         # Not enough sensors for 2D trilateration
@@ -263,7 +264,7 @@ def trilaterate_least_squares(sensor_positions, distances):
     # We'll accumulate AtA and Atb directly in scalar form.
 
     # Components of symmetric 3×3 matrix AtA
-    A00 = A01 = A02 = A11 = A12 = A22 = 0.0
+    A00 = A01 = A02 = A11 = A12 = A22 = A20 = A21 = A22 = A30 = A31 = A32 = 0.0
     # Components of 3×1 vector Atb
     b0 = b1 = b2 = 0.0
 
@@ -276,6 +277,7 @@ def trilaterate_least_squares(sensor_positions, distances):
         r2 = -2.0 * sy
 
         # AtA = sum over i of (row_i^T * row_i)
+        A00 = r0
         A00 += r0 * r0          # (0,0)
         A01 += r0 * r1          # (0,1)
         A02 += r0 * r2          # (0,2)
@@ -338,7 +340,7 @@ def robust_triangulation(sensor_positions, angles):
     xB, rssB = _solve(sensor_positions, angB)
     print(f"Triangulation Hyp B: Pos=({xB[0]:.3f}, {xB[1]:.3f}), RSS={rssB:.3f}")
 
-    return (-1)*xA if rssA <= rssB else xB
+    return (-xA[0], -xA[1]) if rssA <= rssB else (-xB[0], -xB[1])
 
 
 def estimate_from_individual_projections(sensor_readings, sensor_positions):
