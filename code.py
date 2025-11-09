@@ -390,7 +390,66 @@ while True:
         last_cycle = now
         
         
+void doMultilateration(float &outX, float &outY) {
+  const int q = 4;
 
+  double locs[4][2] = {
+      { 0.25,  0.25},
+      {-0.25,  0.25},
+      {-0.25, -0.25},
+      { 0.25, -0.25}
+    };
+
+    // Raw angles in degrees from Teensy
+    float rawDist[4] = {noisy_distance_m1, noisy_distance_m2, noisy_distance_m3, noisy_distance_m4};
+
+    // Build A and b
+    BLA::Matrix<4,3> A;
+    BLA::Matrix<4,1> b; 
+
+    for (int i = 0; i < q; i++) {
+      float x = locs[i][0];
+      float y = locs[i][1];
+      float d = rawDist[i];
+
+      A(i, 0) = 1.0;
+      A(i, 1) = -2.0 * x;
+      A(i, 2) = -2.0 * y;
+      b(i, 0) = d * d - x * x - y * y;
+    }
+    // Compute AtA and Atb
+    BLA::Matrix<3,3> AtA = ~A * A;
+    BLA::Matrix<3,1> Atb = ~A * b;
+
+    // Manual 3x3 inverse
+    float det = AtA(0,0)*(AtA(1,1)*AtA(2,2) - AtA(1,2)*AtA(2,1))
+              - AtA(0,1)*(AtA(1,0)*AtA(2,2) - AtA(1,2)*AtA(2,0))
+              + AtA(0,2)*(AtA(1,0)*AtA(2,1) - AtA(1,1)*AtA(2,0));
+
+    if (fabs(det) < 1e-6) {
+      outX = 0;
+      outY = 0;
+      return; // Singular matrix
+    }
+
+    BLA::Matrix<3,3> inv;
+    inv(0,0) =  (AtA(1,1)*AtA(2,2) - AtA(1,2)*AtA(2,1))/det;
+    inv(0,1) = -(AtA(0,1)*AtA(2,2) - AtA(0,2)*AtA(2,1))/det;
+    inv(0,2) =  (AtA(0,1)*AtA(1,2) - AtA(0,2)*AtA(1,1))/det;
+
+    inv(1,0) = -(AtA(1,0)*AtA(2,2) - AtA(1,2)*AtA(2,0))/det;
+    inv(1,1) =  (AtA(0,0)*AtA(2,2) - AtA(0,2)*AtA(2,0))/det;
+    inv(1,2) = -(AtA(0,0)*AtA(1,2) - AtA(0,2)*AtA(1,0))/det;
+
+    inv(2,0) =  (AtA(1,0)*AtA(2,1) - AtA(1,1)*AtA(2,0))/det;
+    inv(2,1) = -(AtA(0,0)*AtA(2,1) - AtA(0,1)*AtA(2,0))/det;
+    inv(2,2) =  (AtA(0,0)*AtA(1,1) - AtA(0,1)*AtA(1,0))/det;
+
+    BLA::Matrix<3,1> P = inv * Atb;
+
+    outX = P(1);
+    outY = P(2);
+}
 
 
 
