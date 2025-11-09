@@ -118,122 +118,214 @@ def _solve(sensor_positions, angles_rad):
 
     return (x, y), rss
 
-import math
+# import math
 
-def minimize(func, x0, method="Nelder-Mead",
-             maxiter=200, xatol=1e-8, fatol=1e-8):
-    # Convert x0 to float tuple
-    x = float(x0[0])
-    y = float(x0[1])
+# def minimize(func, x0, method="Nelder-Mead",
+#              maxiter=200, xatol=1e-8, fatol=1e-8):
+#     # Convert x0 to float tuple
+#     x = float(x0[0])
+#     y = float(x0[1])
 
-    # Parameters (from Nelder & Mead)
-    alpha = 1.0
-    gamma = 2.0
-    rho   = 0.5
-    sigma = 0.5
+#     # Parameters (from Nelder & Mead)
+#     alpha = 1.0
+#     gamma = 2.0
+#     rho   = 0.5
+#     sigma = 0.5
 
-    # Initial simplex
-    # SciPy uses: x0, x0 + scale * ei (for each i)
-    scale = 0.05
-    x1 = (x + scale * (abs(x) + 1.0), y)
-    x2 = (x, y + scale * (abs(y) + 1.0))
-    simplex = [(x, y), x1, x2]
-    fs = [func(p) for p in simplex]
+#     # Initial simplex
+#     # SciPy uses: x0, x0 + scale * ei (for each i)
+#     scale = 0.05
+#     x1 = (x + scale * (abs(x) + 1.0), y)
+#     x2 = (x, y + scale * (abs(y) + 1.0))
+#     simplex = [(x, y), x1, x2]
+#     fs = [func(p) for p in simplex]
 
-    for iteration in range(maxiter):
-        # Order
-        simplex, fs = zip(*sorted(zip(simplex, fs), key=lambda t: t[1]))
-        simplex = list(simplex)
-        fs = list(fs)
+#     for iteration in range(maxiter):
+#         # Order
+#         simplex, fs = zip(*sorted(zip(simplex, fs), key=lambda t: t[1]))
+#         simplex = list(simplex)
+#         fs = list(fs)
 
-        best = simplex[0]
-        worst = simplex[-1]
-        second_worst = simplex[-2]
-        f_best = fs[0]
-        f_worst = fs[-1]
-        f_second = fs[-2]
+#         best = simplex[0]
+#         worst = simplex[-1]
+#         second_worst = simplex[-2]
+#         f_best = fs[0]
+#         f_worst = fs[-1]
+#         f_second = fs[-2]
 
-        # Check termination
-        # in SciPy: np.max(np.abs(simplex[1:] - best)) <= xatol
-        max_diff = 0.0
-        for p in simplex[1:]:
-            dx = abs(p[0] - best[0])
-            dy = abs(p[1] - best[1])
-            if dx > max_diff:
-                max_diff = dx
-            if dy > max_diff:
-                max_diff = dy
-        if max_diff <= xatol and (f_worst - f_best) <= fatol:
-            break
+#         # Check termination
+#         # in SciPy: np.max(np.abs(simplex[1:] - best)) <= xatol
+#         max_diff = 0.0
+#         for p in simplex[1:]:
+#             dx = abs(p[0] - best[0])
+#             dy = abs(p[1] - best[1])
+#             if dx > max_diff:
+#                 max_diff = dx
+#             if dy > max_diff:
+#                 max_diff = dy
+#         if max_diff <= xatol and (f_worst - f_best) <= fatol:
+#             break
 
-        # Centroid excluding worst
-        cx = cy = 0.0
-        for p in simplex[:-1]:
-            cx += p[0]
-            cy += p[1]
-        cx /= 2.0
-        cy /= 2.0
+#         # Centroid excluding worst
+#         cx = cy = 0.0
+#         for p in simplex[:-1]:
+#             cx += p[0]
+#             cy += p[1]
+#         cx /= 2.0
+#         cy /= 2.0
 
-        # Reflection
-        xr = (cx + alpha * (cx - worst[0]), cy + alpha * (cy - worst[1]))
-        f_r = func(xr)
+#         # Reflection
+#         xr = (cx + alpha * (cx - worst[0]), cy + alpha * (cy - worst[1]))
+#         f_r = func(xr)
 
-        if f_r < f_best:
-            # Expansion
-            xe = (cx + gamma * (xr[0] - cx), cy + gamma * (xr[1] - cy))
-            f_e = func(xe)
-            if f_e < f_r:
-                simplex[-1] = xe
-                fs[-1] = f_e
-            else:
-                simplex[-1] = xr
-                fs[-1] = f_r
+#         if f_r < f_best:
+#             # Expansion
+#             xe = (cx + gamma * (xr[0] - cx), cy + gamma * (xr[1] - cy))
+#             f_e = func(xe)
+#             if f_e < f_r:
+#                 simplex[-1] = xe
+#                 fs[-1] = f_e
+#             else:
+#                 simplex[-1] = xr
+#                 fs[-1] = f_r
 
-        elif f_r < f_second:
-            simplex[-1] = xr
-            fs[-1] = f_r
+#         elif f_r < f_second:
+#             simplex[-1] = xr
+#             fs[-1] = f_r
 
-        else:
-            # Contraction
-            if f_r < f_worst:
-                # outside contraction
-                xc = (cx + rho * (xr[0] - cx), cy + rho * (xr[1] - cy))
-            else:
-                # inside contraction
-                xc = (cx + rho * (worst[0] - cx), cy + rho * (worst[1] - cy))
-            f_c = func(xc)
-            if f_c < f_worst:
-                simplex[-1] = xc
-                fs[-1] = f_c
-            else:
-                # Shrink
-                for i in range(1, len(simplex)):
-                    simplex[i] = (best[0] + sigma * (simplex[i][0] - best[0]),
-                                  best[1] + sigma * (simplex[i][1] - best[1]))
-                    fs[i] = func(simplex[i])
+#         else:
+#             # Contraction
+#             if f_r < f_worst:
+#                 # outside contraction
+#                 xc = (cx + rho * (xr[0] - cx), cy + rho * (xr[1] - cy))
+#             else:
+#                 # inside contraction
+#                 xc = (cx + rho * (worst[0] - cx), cy + rho * (worst[1] - cy))
+#             f_c = func(xc)
+#             if f_c < f_worst:
+#                 simplex[-1] = xc
+#                 fs[-1] = f_c
+#             else:
+#                 # Shrink
+#                 for i in range(1, len(simplex)):
+#                     simplex[i] = (best[0] + sigma * (simplex[i][0] - best[0]),
+#                                   best[1] + sigma * (simplex[i][1] - best[1]))
+#                     fs[i] = func(simplex[i])
 
-    # Return a simple result object
-    class Result:
-        pass
-    res = Result()
-    res.x = simplex[0]
-    res.fun = fs[0]
-    return res
+#     # Return a simple result object
+#     class Result:
+#         pass
+#     res = Result()
+#     res.x = simplex[0]
+#     res.fun = fs[0]
+#     return res
 
-def trilaterate_least_squares(sensor_positions, distances): 
-    def objective(point): 
-        x, y = point 
-        error = 0 
-        for (sx, sy), distance in zip(sensor_positions, distances): 
-            calculated_dist = np.sqrt((x - sx) ** 2 + (y - sy) ** 2) 
-            error += (calculated_dist - distance) ** 2 
-        return error 
+# def trilaterate_least_squares(sensor_positions, distances): 
+#     def objective(point): 
+#         x, y = point 
+#         error = 0 
+#         for (sx, sy), distance in zip(sensor_positions, distances): 
+#             calculated_dist = np.sqrt((x - sx) ** 2 + (y - sy) ** 2) 
+#             error += (calculated_dist - distance) ** 2 
+#         return error 
     
-    initial_guess = np.mean(np.array(sensor_positions), axis=0)
-    initial_guess = (float(initial_guess[0]), float(initial_guess[1]))
-    # Optimize to find the point that best fits all distance measurements 
-    result = minimize(objective, initial_guess, method="Nelder-Mead") 
-    return (result.x[0], result.x[1])
+#     initial_guess = np.mean(np.array(sensor_positions), axis=0)
+#     initial_guess = (float(initial_guess[0]), float(initial_guess[1]))
+#     # Optimize to find the point that best fits all distance measurements 
+#     result = minimize(objective, initial_guess, method="Nelder-Mead") 
+#     return (result.x[0], result.x[1])
+
+def trilaterate_least_squares(sensor_positions, distances):
+    """
+    Closed-form multilateration least-squares using the same algebra
+    as the Teensy doMultilateration() code.
+
+    sensor_positions: list of (sx, sy)
+    distances:        list of d_i (same units as sx, sy)
+
+    Returns (x, y) estimate. If the normal equation matrix is singular,
+    returns (0.0, 0.0).
+    """
+    n = len(sensor_positions)
+    if n < 3:
+        # Not enough sensors for 2D trilateration
+        return (0.0, 0.0)
+
+    # We’re building A (n×3) with rows [1, -2x_i, -2y_i]
+    # and b (n×1) with entries d_i^2 - x_i^2 - y_i^2
+    #
+    # Then we compute:
+    #   AtA = A^T A  (3×3)
+    #   Atb = A^T b  (3×1)
+    # and solve:
+    #   (AtA) * P = Atb, where P = [c, X, Y]^T and (X, Y) is the position.
+    #
+    # We'll accumulate AtA and Atb directly in scalar form.
+
+    # Components of symmetric 3×3 matrix AtA
+    A00 = A01 = A02 = A11 = A12 = A22 = 0.0
+    # Components of 3×1 vector Atb
+    b0 = b1 = b2 = 0.0
+
+    for (sx, sy), d in zip(sensor_positions, distances):
+        d2 = d * d
+        b_i = d2 - sx * sx - sy * sy
+
+        r0 = 1.0
+        r1 = -2.0 * sx
+        r2 = -2.0 * sy
+
+        # AtA = sum over i of (row_i^T * row_i)
+        A00 += r0 * r0          # (0,0)
+        A01 += r0 * r1          # (0,1)
+        A02 += r0 * r2          # (0,2)
+        A11 += r1 * r1          # (1,1)
+        A12 += r1 * r2          # (1,2)
+        A22 += r2 * r2          # (2,2)
+
+        # Atb = sum over i of row_i^T * b_i
+        b0 += r0 * b_i
+        b1 += r1 * b_i
+        b2 += r2 * b_i
+
+    # Fill symmetric parts
+    A10 = A01
+    A20 = A02
+    A21 = A12
+
+    # Determinant of AtA (3×3) – matches your C++ code
+    det = (
+        A00 * (A11 * A22 - A12 * A21)
+        - A01 * (A10 * A22 - A12 * A20)
+        + A02 * (A10 * A21 - A11 * A20)
+    )
+
+    if abs(det) < 1e-6:
+        # Singular / ill-conditioned geometry
+        return (0.0, 0.0)
+
+    # Manual inverse of 3×3 (same as Teensy code)
+    inv00 =  (A11 * A22 - A12 * A21) / det
+    inv01 = -(A01 * A22 - A02 * A21) / det
+    inv02 =  (A01 * A12 - A02 * A11) / det
+
+    inv10 = -(A10 * A22 - A12 * A20) / det
+    inv11 =  (A00 * A22 - A02 * A20) / det
+    inv12 = -(A00 * A12 - A02 * A10) / det
+
+    inv20 =  (A10 * A21 - A11 * A20) / det
+    inv21 = -(A00 * A21 - A01 * A20) / det
+    inv22 =  (A00 * A11 - A01 * A10) / det
+
+    # P = inv(AtA) * Atb, P = [c, X, Y]^T
+    P0 = inv00 * b0 + inv01 * b1 + inv02 * b2
+    P1 = inv10 * b0 + inv11 * b1 + inv12 * b2
+    P2 = inv20 * b0 + inv21 * b1 + inv22 * b2
+
+    # We only care about X and Y, like outX = P(1), outY = P(2)
+    x = P1
+    y = P2
+    return (x, y)
 
 def robust_triangulation(sensor_positions, angles):
     # Hypothesis A: 0° along +x, CCW
@@ -389,67 +481,3 @@ while True:
             updated[k] = False
         last_cycle = now
         
-        
-void doMultilateration(float &outX, float &outY) {
-  const int q = 4;
-
-  double locs[4][2] = {
-      { 0.25,  0.25},
-      {-0.25,  0.25},
-      {-0.25, -0.25},
-      { 0.25, -0.25}
-    };
-
-    // Raw angles in degrees from Teensy
-    float rawDist[4] = {noisy_distance_m1, noisy_distance_m2, noisy_distance_m3, noisy_distance_m4};
-
-    // Build A and b
-    BLA::Matrix<4,3> A;
-    BLA::Matrix<4,1> b; 
-
-    for (int i = 0; i < q; i++) {
-      float x = locs[i][0];
-      float y = locs[i][1];
-      float d = rawDist[i];
-
-      A(i, 0) = 1.0;
-      A(i, 1) = -2.0 * x;
-      A(i, 2) = -2.0 * y;
-      b(i, 0) = d * d - x * x - y * y;
-    }
-    // Compute AtA and Atb
-    BLA::Matrix<3,3> AtA = ~A * A;
-    BLA::Matrix<3,1> Atb = ~A * b;
-
-    // Manual 3x3 inverse
-    float det = AtA(0,0)*(AtA(1,1)*AtA(2,2) - AtA(1,2)*AtA(2,1))
-              - AtA(0,1)*(AtA(1,0)*AtA(2,2) - AtA(1,2)*AtA(2,0))
-              + AtA(0,2)*(AtA(1,0)*AtA(2,1) - AtA(1,1)*AtA(2,0));
-
-    if (fabs(det) < 1e-6) {
-      outX = 0;
-      outY = 0;
-      return; // Singular matrix
-    }
-
-    BLA::Matrix<3,3> inv;
-    inv(0,0) =  (AtA(1,1)*AtA(2,2) - AtA(1,2)*AtA(2,1))/det;
-    inv(0,1) = -(AtA(0,1)*AtA(2,2) - AtA(0,2)*AtA(2,1))/det;
-    inv(0,2) =  (AtA(0,1)*AtA(1,2) - AtA(0,2)*AtA(1,1))/det;
-
-    inv(1,0) = -(AtA(1,0)*AtA(2,2) - AtA(1,2)*AtA(2,0))/det;
-    inv(1,1) =  (AtA(0,0)*AtA(2,2) - AtA(0,2)*AtA(2,0))/det;
-    inv(1,2) = -(AtA(0,0)*AtA(1,2) - AtA(0,2)*AtA(1,0))/det;
-
-    inv(2,0) =  (AtA(1,0)*AtA(2,1) - AtA(1,1)*AtA(2,0))/det;
-    inv(2,1) = -(AtA(0,0)*AtA(2,1) - AtA(0,1)*AtA(2,0))/det;
-    inv(2,2) =  (AtA(0,0)*AtA(1,1) - AtA(0,1)*AtA(1,0))/det;
-
-    BLA::Matrix<3,1> P = inv * Atb;
-
-    outX = P(1);
-    outY = P(2);
-}
-
-
-
