@@ -31,7 +31,7 @@ OFFSETS_DEG = [180.0, 180.0, 0.0, 0.0]  # sensors 1–2: +180°, 3–4: +0°
 RADIUS_MM = 4.5
 MM2IN = 1 / 25.4
 
-CABLECENTER = (0.0, 0.0) 
+# CABLECENTER = (0.0, 0.0) 
 
 PACKET_FORMAT = "<fH"
 PACKET_SIZE = 6
@@ -118,20 +118,19 @@ def _solve(sensor_positions, angles_rad):
 
     return (x, y), rss
 
-def minimize(func, x0, step=10.0, tol=1e-4, max_iter=200):
-
-    x, y = x0
+def minimize(func, x0, step=10.0, tol=1e-4, max_iter=200, **kwargs):
+    x, y = float(x0[0]), float(x0[1])
     f = func((x, y))
 
     for _ in range(max_iter):
         improved = False
         # Try small moves in ±x, ±y
-        for dx, dy in ((step, 0), (-step, 0), (0, step), (0, -step)):
-            f2 = func((x + dx, y + dy))
+        for dx, dy in ((step, 0.0), (-step, 0.0), (0.0, step), (0.0, -step)):
+            x2 = x + dx
+            y2 = y + dy
+            f2 = func((x2, y2))
             if f2 < f:
-                x += dx
-                y += dy
-                f = f2
+                x, y, f = x2, y2, f2
                 improved = True
                 break
         if not improved:
@@ -139,7 +138,12 @@ def minimize(func, x0, step=10.0, tol=1e-4, max_iter=200):
             if step < tol:
                 break
 
-    return {"x": (x, y), "fun": f}
+    class Result:
+        pass
+    res = Result()
+    res.x = (x, y)
+    res.fun = f
+    return res
 
 def trilaterate_least_squares(sensor_positions, distances): 
     def objective(point): 
@@ -148,12 +152,12 @@ def trilaterate_least_squares(sensor_positions, distances):
         for (sx, sy), distance in zip(sensor_positions, distances): 
             calculated_dist = np.sqrt((x - sx) ** 2 + (y - sy) ** 2) 
             error += (calculated_dist - distance) ** 2 
-            return error 
-        # Initial guess: center 
-        initial_guess = np.mean(sensor_positions, axis=0) 
-        # Optimize to find the point that best fits all distance measurements 
-        result = minimize(objective, initial_guess, method="Nelder-Mead") 
-        return (result.x[0], result.x[1])
+        return error 
+    
+    initial_guess = np.mean(sensor_positions, axis=0) 
+    # Optimize to find the point that best fits all distance measurements 
+    result = minimize(objective, initial_guess, method="Nelder-Mead") 
+    return (result.x[0], result.x[1])
 
 def robust_triangulation(sensor_positions, angles):
     # Hypothesis A: 0° along +x, CCW
