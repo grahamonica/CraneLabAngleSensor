@@ -118,31 +118,106 @@ def _solve(sensor_positions, angles_rad):
 
     return (x, y), rss
 
-def minimize(func, x0, step=10.0, tol=1e-4, max_iter=200, **kwargs):
-    x, y = float(x0[0]), float(x0[1])
-    f = func((x, y))
+import math
 
-    for _ in range(max_iter):
-        improved = False
-        # Try small moves in ±x, ±y
-        for dx, dy in ((step, 0.0), (-step, 0.0), (0.0, step), (0.0, -step)):
-            x2 = x + dx
-            y2 = y + dy
-            f2 = func((x2, y2))
-            if f2 < f:
-                x, y, f = x2, y2, f2
-                improved = True
-                break
-        if not improved:
-            step *= 0.5
-            if step < tol:
-                break
+def minimize(func, x0, method="Nelder-Mead",
+             maxiter=200, xatol=1e-8, fatol=1e-8):
+    # Convert x0 to float tuple
+    x = float(x0[0])
+    y = float(x0[1])
 
+    # Parameters (from Nelder & Mead)
+    alpha = 1.0
+    gamma = 2.0
+    rho   = 0.5
+    sigma = 0.5
+
+    # Initial simplex
+    # SciPy uses: x0, x0 + scale * ei (for each i)
+    scale = 0.05
+    x1 = (x + scale * (abs(x) + 1.0), y)
+    x2 = (x, y + scale * (abs(y) + 1.0))
+    simplex = [(x, y), x1, x2]
+    fs = [func(p) for p in simplex]
+
+    for iteration in range(maxiter):
+        # Order
+        simplex, fs = zip(*sorted(zip(simplex, fs), key=lambda t: t[1]))
+        simplex = list(simplex)
+        fs = list(fs)
+
+        best = simplex[0]
+        worst = simplex[-1]
+        second_worst = simplex[-2]
+        f_best = fs[0]
+        f_worst = fs[-1]
+        f_second = fs[-2]
+
+        # Check termination
+        # in SciPy: np.max(np.abs(simplex[1:] - best)) <= xatol
+        max_diff = 0.0
+        for p in simplex[1:]:
+            dx = abs(p[0] - best[0])
+            dy = abs(p[1] - best[1])
+            if dx > max_diff:
+                max_diff = dx
+            if dy > max_diff:
+                max_diff = dy
+        if max_diff <= xatol and (f_worst - f_best) <= fatol:
+            break
+
+        # Centroid excluding worst
+        cx = cy = 0.0
+        for p in simplex[:-1]:
+            cx += p[0]
+            cy += p[1]
+        cx /= 2.0
+        cy /= 2.0
+
+        # Reflection
+        xr = (cx + alpha * (cx - worst[0]), cy + alpha * (cy - worst[1]))
+        f_r = func(xr)
+
+        if f_r < f_best:
+            # Expansion
+            xe = (cx + gamma * (xr[0] - cx), cy + gamma * (xr[1] - cy))
+            f_e = func(xe)
+            if f_e < f_r:
+                simplex[-1] = xe
+                fs[-1] = f_e
+            else:
+                simplex[-1] = xr
+                fs[-1] = f_r
+
+        elif f_r < f_second:
+            simplex[-1] = xr
+            fs[-1] = f_r
+
+        else:
+            # Contraction
+            if f_r < f_worst:
+                # outside contraction
+                xc = (cx + rho * (xr[0] - cx), cy + rho * (xr[1] - cy))
+            else:
+                # inside contraction
+                xc = (cx + rho * (worst[0] - cx), cy + rho * (worst[1] - cy))
+            f_c = func(xc)
+            if f_c < f_worst:
+                simplex[-1] = xc
+                fs[-1] = f_c
+            else:
+                # Shrink
+                for i in range(1, len(simplex)):
+                    simplex[i] = (best[0] + sigma * (simplex[i][0] - best[0]),
+                                  best[1] + sigma * (simplex[i][1] - best[1]))
+                    fs[i] = func(simplex[i])
+
+    # Return a simple result object
     class Result:
         pass
     res = Result()
-    res.x = (x, y)
-    res.fun = f
+    res.x = simplex[0]
+    res.fun = fs[0]
     return res
 
 def trilaterate_least_squares(sensor_positions, distances): 
