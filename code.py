@@ -118,47 +118,42 @@ def _solve(sensor_positions, angles_rad):
 
     return (x, y), rss
 
-import math
+def minimize(func, x0, step=10.0, tol=1e-4, max_iter=200):
 
-def trilaterate_least_squares(sensor_positions, distances,
-                              max_iter=100, step=0.01, tol=1e-6):
-    n = len(sensor_positions)
-    if n == 0:
-        return (0.0, 0.0)
-
-    cx = sum(p[0] for p in sensor_positions) / n
-    cy = sum(p[1] for p in sensor_positions) / n
+    x, y = x0
+    f = func((x, y))
 
     for _ in range(max_iter):
-        grad_x = 0.0
-        grad_y = 0.0
+        improved = False
+        # Try small moves in ±x, ±y
+        for dx, dy in ((step, 0), (-step, 0), (0, step), (0, -step)):
+            f2 = func((x + dx, y + dy))
+            if f2 < f:
+                x += dx
+                y += dy
+                f = f2
+                improved = True
+                break
+        if not improved:
+            step *= 0.5
+            if step < tol:
+                break
 
-        for (sx, sy), d in zip(sensor_positions, distances):
-            dx = cx - sx
-            dy = cy - sy
-            r = math.sqrt(dx*dx + dy*dy)
+    return {"x": (x, y), "fun": f}
 
-            if r < 1e-6:
-                r = 1e-6
-
-            diff = r - d 
-
-            grad_x += 2.0 * diff * (dx / r)
-            grad_y += 2.0 * diff * (dy / r)
-
-        new_cx = cx - step * grad_x
-        new_cy = cy - step * grad_y
-
-        move_x = new_cx - cx
-        move_y = new_cy - cy
-        if move_x*move_x + move_y*move_y < tol*tol:
-            cx, cy = new_cx, new_cy
-            break
-
-        cx, cy = new_cx, new_cy
-
-    return (cx, cy)
-
+def trilaterate_least_squares(sensor_positions, distances): 
+    def objective(point): 
+        x, y = point 
+        error = 0 
+        for (sx, sy), distance in zip(sensor_positions, distances): 
+            calculated_dist = np.sqrt((x - sx) ** 2 + (y - sy) ** 2) 
+            error += (calculated_dist - distance) ** 2 
+            return error 
+        # Initial guess: center 
+        initial_guess = np.mean(sensor_positions, axis=0) 
+        # Optimize to find the point that best fits all distance measurements 
+        result = minimize(objective, initial_guess, method="Nelder-Mead") 
+        return (result.x[0], result.x[1])
 
 def robust_triangulation(sensor_positions, angles):
     # Hypothesis A: 0° along +x, CCW
@@ -171,7 +166,7 @@ def robust_triangulation(sensor_positions, angles):
     xB, rssB = _solve(sensor_positions, angB)
     print(f"Triangulation Hyp B: Pos=({xB[0]:.3f}, {xB[1]:.3f}), RSS={rssB:.3f}")
 
-    return xA if rssA <= rssB else xB
+    return (-1)*xA if rssA <= rssB else xB
 
 
 def estimate_from_individual_projections(sensor_readings, sensor_positions):
@@ -208,7 +203,7 @@ def robust_least_squares(points, max_iter=10, tol=1e-6):
             sw += w
 
         # weighted_sum = (sx, sy)  we dont use this line anymore but I am being consissten for now
-        new_center = (sx / sw, sy / sw)
+        new_center = np.array([sx / sw, sy / sw])
         # Compute residuals (Euclidean distances to new center)
         residuals = np.linalg.norm(points - new_center, axis=1)
 
