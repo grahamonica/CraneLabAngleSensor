@@ -3,7 +3,9 @@ import math
 import statistics
 import trilaterate
 import triangulate
+import numpy as np
 import individual
+from scipy.optimize import minimize
 
 cableheight = 816.11 / 25.4
 # Geometry (inches)
@@ -25,7 +27,6 @@ def hypot2(a, b):
     return (dx * dx + dy * dy) ** 0.5
 
 
-import numpy as np
 
 
 def _solve(sensor_positions, angles_rad):
@@ -100,9 +101,6 @@ def robust_least_squares(points, max_iter=10, tol=1e-6):
         prev_center = new_center
 
     return new_center
-
-
-from scipy.optimize import minimize
 
 
 def trilaterate_least_squares(sensor_positions, distances):

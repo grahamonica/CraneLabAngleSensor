@@ -85,20 +85,79 @@ def hypot2(a, b):
     return (dx * dx + dy * dy) ** 0.5
 
 def _solve(sensor_positions, angles_rad):
-    # Line normal for bearing theta: n = (-sinθ, cosθ)
-    A = []
-    b = []
+    normals = []
+    bs = []
     for (x0, y0), th in zip(sensor_positions, angles_rad):
-        n = (-math.sin(th), math.cos(th))
-        A.append(n)
-        b.append(n[0] * x0 + n[1] * y0)
-    A = np.asarray(A, float)  # (m,2)
-    b = np.asarray(b, float)  # (m,)
-    # Least-squares solution to A x ≈ b
-    x, *_ = np.linalg.lstsq(A, b, rcond=None)
-    resid = A @ x - b
-    rss = float(resid @ resid)
-    return (float(x[0]), float(x[1])), rss
+        nx = -math.sin(th)
+        ny =  math.cos(th)
+        b = nx * x0 + ny * y0
+        normals.append((nx, ny))
+        bs.append(b)
+
+    Sxx = Sxy = Syx = Syy = 0.0
+    Sxb = Syb = 0.0
+    for (nx, ny), b in zip(normals, bs):
+        Sxx += nx * nx
+        Sxy += nx * ny
+        Syx += ny * nx
+        Syy += ny * ny
+        Sxb += nx * b
+        Syb += ny * b
+
+    det = Sxx * Syy - Sxy * Syx
+    if abs(det) < 1e-9:
+        return (0.0, 0.0), 1e9
+
+    x = ( Syy * Sxb - Sxy * Syb) / det
+    y = (-Syx * Sxb + Sxx * Syb) / det
+
+    rss = 0.0
+    for (nx, ny), b in zip(normals, bs):
+        r = nx * x + ny * y - b
+        rss += r * r
+
+    return (x, y), rss
+
+import math
+
+def trilaterate_least_squares(sensor_positions, distances,
+                              max_iter=100, step=0.01, tol=1e-6):
+    n = len(sensor_positions)
+    if n == 0:
+        return (0.0, 0.0)
+
+    cx = sum(p[0] for p in sensor_positions) / n
+    cy = sum(p[1] for p in sensor_positions) / n
+
+    for _ in range(max_iter):
+        grad_x = 0.0
+        grad_y = 0.0
+
+        for (sx, sy), d in zip(sensor_positions, distances):
+            dx = cx - sx
+            dy = cy - sy
+            r = math.sqrt(dx*dx + dy*dy)
+
+            if r < 1e-6:
+                r = 1e-6
+
+            diff = r - d 
+
+            grad_x += 2.0 * diff * (dx / r)
+            grad_y += 2.0 * diff * (dy / r)
+
+        new_cx = cx - step * grad_x
+        new_cy = cy - step * grad_y
+
+        move_x = new_cx - cx
+        move_y = new_cy - cy
+        if move_x*move_x + move_y*move_y < tol*tol:
+            cx, cy = new_cx, new_cy
+            break
+
+        cx, cy = new_cx, new_cy
+
+    return (cx, cy)
 
 
 def robust_triangulation(sensor_positions, angles):
@@ -154,7 +213,7 @@ def robust_least_squares(points, max_iter=10, tol=1e-6):
         residuals = np.linalg.norm(points - new_center, axis=1)
 
         # Update weights: inverse of residual, clipped to avoid division by zero
-        weights = 1 / np.clip(residuals, 1e-3, None)
+        weights = 1 / np.maximum(residuals, 1e-3)
 
         # Check convergence
         if np.linalg.norm(new_center - prev_center) < tol:
@@ -179,7 +238,7 @@ def main(distancesarray, anglesarray):
     distances = distancesarray
     angles = anglesarray
     p1 = estimate_from_individual_projections(readings, SENSOR_POS)
-    #p2 = trilaterate.trilaterate_least_squares(SENSOR_POS, distances)
+    p2 = trilaterate_least_squares(SENSOR_POS, distances)
     p3 = robust_triangulation(SENSOR_POS, angles)
 
     for name, p, bucket in [
