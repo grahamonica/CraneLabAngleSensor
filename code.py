@@ -154,7 +154,8 @@ def trilaterate_least_squares(sensor_positions, distances):
             error += (calculated_dist - distance) ** 2 
         return error 
     
-    initial_guess = np.mean(sensor_positions, axis=0) 
+    initial_guess = np.mean(np.array(sensor_positions), axis=0)
+    initial_guess = (float(initial_guess[0]), float(initial_guess[1]))
     # Optimize to find the point that best fits all distance measurements 
     result = minimize(objective, initial_guess, method="Nelder-Mead") 
     return (result.x[0], result.x[1])
