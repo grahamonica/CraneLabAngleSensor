@@ -141,9 +141,15 @@ def robust_least_squares(points, max_iter=10, tol=1e-6):
 
     for _ in range(max_iter):
         # Weighted centroid
-        weighted_sum = np.sum(points * weights[:, None], axis=0)
-        new_center = weighted_sum / np.sum(weights)
+        # Weighted centroid
+        sx = sy = sw = 0.0
+        for (x, y), w in zip(points, weights):
+            sx += x * w
+            sy += y * w
+            sw += w
 
+        # weighted_sum = (sx, sy)  we dont use this line anymore but I am being consissten for now
+        new_center = (sx / sw, sy / sw)
         # Compute residuals (Euclidean distances to new center)
         residuals = np.linalg.norm(points - new_center, axis=1)
 
