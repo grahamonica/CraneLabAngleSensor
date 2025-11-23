@@ -1,6 +1,14 @@
-# dataformatter.py
-import openpyxl
+"""Convert the recorded spreadsheet (data/LiDAR_Data_Collection.xlsx, sheet
+"Object In Center") into data/formatted_sensor_data.csv, one row per sensor per
+test: Test, Sensor, Distance (inches), Angle (degrees)."""
 import csv
+from pathlib import Path
+
+import openpyxl
+
+DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+XLSX_PATH = DATA_DIR / "LiDAR_Data_Collection.xlsx"
+CSV_PATH = DATA_DIR / "formatted_sensor_data.csv"
 
 SHEET_NAME = "Object In Center"  # must be this sheet
 SENSOR_COLS = [
@@ -41,13 +49,17 @@ def convert_excel_to_sensor_format(xlsx):
     return out
 
 
-if __name__ == "__main__":
-    data = convert_excel_to_sensor_format("LiDAR_Data_Collection.xlsx")
+def write_csv(xlsx=XLSX_PATH, csv_out=CSV_PATH):
+    data = convert_excel_to_sensor_format(xlsx)
     print(f"Processed {len(data) // 4} sets")
-    with open("formatted_sensor_data.csv", "w", newline="") as f:
+    with open(csv_out, "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["Test", "Sensor", "Distance (inches)", "Angle (degrees)"])
         for i in range(0, len(data), 4):
             t = i // 4 + 1
             for s, (dist, ang) in enumerate(data[i : i + 4], start=1):
                 w.writerow([t, s, dist, ang])
+
+
+if __name__ == "__main__":
+    write_csv()

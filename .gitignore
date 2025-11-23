@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+.pytest_cache/
+
+# Trained snag-detection models (regenerate with snag_detection/train.py)
+snag_detection/models/
+
+# Excel lock files
+~$*.xlsx
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store

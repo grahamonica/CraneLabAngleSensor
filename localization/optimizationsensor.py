@@ -1,12 +1,15 @@
-# analyze_lidar.py
-import math
+"""Run all three localization methods on the recorded data and print error
+statistics. Regenerates data/formatted_sensor_data.csv from the spreadsheet
+first. Run from anywhere: python3 localization/optimizationsensor.py"""
 import csv
+import math
 import statistics
-import subprocess
 from collections import defaultdict
-import trilaterate
-import triangulate
+
+import dataformatter
 import individual
+import triangulate
+import trilaterate
 
 cableheight = 816.11 / 25.4
 # Geometry (inches)
@@ -22,10 +25,10 @@ CABLECENTER = (0.0, 0.0)  # set to None to skip distance-to-target
 
 def run_formatter():
     print("Converting Excel → CSV...")
-    subprocess.run(["python", "dataformatter.py"], check=True)
+    dataformatter.write_csv()
 
 
-def load_tests(csv_path="formatted_sensor_data.csv"):
+def load_tests(csv_path=dataformatter.CSV_PATH):
     tests = defaultdict(list)
     with open(csv_path, newline="") as f:
         for r in csv.DictReader(f):
