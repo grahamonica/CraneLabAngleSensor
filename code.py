@@ -5,6 +5,9 @@ import busio
 import digitalio
 import struct
 import time
+import numpy as np
+from sklearn.ensemble import RandomForestClassifier
+import joblib
 
 # === UART setup (4 hardware ports) ===
 uart1 = busio.UART(board.TX, board.RX, baudrate=115200, timeout=0.01)
@@ -482,4 +485,81 @@ while True:
         for k in updated:
             updated[k] = False
         last_cycle = now
-        
+
+class SnagDetector:
+    def __init__(self):
+        """
+        Initialize the SnagDetector with a placeholder model.
+        The model will be trained and loaded later.
+        """
+        self.model = None
+        self.feature_names = ['distance_delta', 'angle_delta', 'speed', 'acceleration']
+
+    def extract_features(self, sensor_data):
+        """
+        Extract features from raw sensor data.
+
+        Args:
+            sensor_data (list of dict): List of sensor readings, each containing 'distance' and 'angle'.
+
+        Returns:
+            np.ndarray: Extracted feature matrix.
+        """
+        features = []
+        for i in range(1, len(sensor_data)):
+            prev = sensor_data[i - 1]
+            curr = sensor_data[i]
+
+            distance_delta = curr['distance'] - prev['distance']
+            angle_delta = curr['angle'] - prev['angle']
+            speed = distance_delta / 0.1  # Assuming 0.1s time step
+            acceleration = speed / 0.1
+
+            features.append([distance_delta, angle_delta, speed, acceleration])
+
+        return np.array(features)
+
+    def load_model(self, model_path):
+        """
+        Load a pre-trained model from disk.
+
+        Args:
+            model_path (str): Path to the saved model file.
+        """
+        self.model = joblib.load(model_path)
+
+    def predict(self, sensor_data):
+        """
+        Predict whether a snag is detected based on sensor data.
+
+        Args:
+            sensor_data (list of dict): List of sensor readings, each containing 'distance' and 'angle'.
+
+        Returns:
+            list of int: Predictions for each time step (1 = snag, 0 = no snag).
+        """
+        if self.model is None:
+            raise ValueError("Model not loaded. Please load a trained model first.")
+
+        features = self.extract_features(sensor_data)
+        return self.model.predict(features)
+
+# Example usage
+if __name__ == "__main__":
+    # Placeholder for real sensor data
+    sensor_data = [
+        {'distance': 10.0, 'angle': 45.0},
+        {'distance': 10.5, 'angle': 46.0},
+        {'distance': 11.0, 'angle': 47.0},
+        {'distance': 11.5, 'angle': 48.0},
+    ]
+
+    detector = SnagDetector()
+
+    # Load a pre-trained model (replace 'snag_model.joblib' with actual path)
+    # detector.load_model('snag_model.joblib')
+
+    # Predict snags (this will raise an error until a model is loaded)
+    # predictions = detector.predict(sensor_data)
+    # print("Predictions:", predictions)
+
