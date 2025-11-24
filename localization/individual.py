@@ -18,7 +18,29 @@ def estimate_from_individual_projections(sensor_readings, sensor_positions):
         )
         projections.append([px, py])
 
-    return robust_least_squares(np.array(projections))
+    projections = np.array(projections)
+    faulty = find_faulty_sensors(projections)
+    for i in faulty:
+        print(f"WARNING: Sensor {i + 1} disagrees with the other sensors, excluding it")
+    good = [i for i in range(len(projections)) if i not in faulty]
+    if len(good) < 2:
+        good = list(range(len(projections)))  # can't tell who is wrong, use all
+    return robust_least_squares(projections[good])
+
+
+FAULT_THRESHOLD_IN = 2.5  # healthy sensors stay within ~1.9 in of each other in the recorded data
+
+
+def find_faulty_sensors(points, threshold=FAULT_THRESHOLD_IN):
+    """Each sensor gives its own estimate of the cable position, so the
+    others can check it: flag a sensor whose point is far from the median of
+    the other sensors' points."""
+    faulty = []
+    for i in range(len(points)):
+        others = np.delete(points, i, axis=0)
+        if np.linalg.norm(points[i] - np.median(others, axis=0)) > threshold:
+            faulty.append(i)
+    return faulty
 
 
 def robust_least_squares(points, max_iter=10, tol=1e-6):
